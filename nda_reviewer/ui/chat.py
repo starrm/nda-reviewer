@@ -5,9 +5,9 @@ from tkinter import messagebox
 import difflib
 from tkinter import ttk
 import customtkinter as ctk
+from customtkinter import CTkButton
 
 from nda_reviewer.settings import FONT_FAMILY, MAIN_WINDOW_RESOLUTION, MAIN_WINDOW_TITLE
-from nda_reviewer.ui.frames import SettingsFrame
 from nda_reviewer.utils.icon_loader import load_svg_icon
 
 
@@ -29,21 +29,46 @@ class ChatApp(ctk.CTk):
         self.upload_icon = load_svg_icon("upload", color="#FFFFFF")
         self.edit_icon = load_svg_icon("edit-3", color="#FFFFFF")
         self.download_icon = load_svg_icon("download", color="#FFFFFF")
-        self.send_icon = load_svg_icon("send", color="#FFFFFF")
-        self.settings_icon = load_svg_icon("settings", color="#FFFFFF")
+        self.send_icon = load_svg_icon("send", color="#FFFFFF", size=(20, 20))
         self.new_chat_icon = load_svg_icon("plus-circle", color="#FFFFFF")
+        self.export_icon = load_svg_icon("save", color="#FFFFFF")
 
-        # Initialize choices frame with widgets for model selection
-        self.settings_frame = SettingsFrame(
-            self,
-            available_models=backend.available_models(),
-            on_model_select_callback=self.on_model_selection,
-            on_reset_callback=self.on_reset_callback,
-            on_export_callback=self.on_export_callback,
-            corner_radius=0,
-            fg_color="transparent",
+        # Create a frame for the top buttons
+        self.top_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.top_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(0, 0))
+        self.top_frame.grid_columnconfigure(1, weight=1)
+
+        # New Chat button (top left)
+        self.new_chat_button = ctk.CTkButton(
+            self.top_frame,
+            text="New Chat",
+            image=self.new_chat_icon,
+            compound="left",
+            command=self.clear_chat,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            fg_color="#1E90FF",
+            hover_color="#4169E1",
+            height=22,
+            corner_radius=3,
         )
-        self.settings_frame.grid(row=0, column=0, rowspan=1, sticky="nsew")
+        self.new_chat_button.grid(row=0, column=0, padx=(0, 5), pady=(5, 0), sticky="w")
+
+        # Export Chat button (top right)
+        self.export_chat_button = ctk.CTkButton(
+            self.top_frame,
+            text="Export Chat",
+            image=self.export_icon,
+            compound="left",
+            command=self.export_chat,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
+            fg_color="#1E90FF",
+            hover_color="#4169E1",
+            height=22,
+            corner_radius=3,
+        )
+        self.export_chat_button.grid(
+            row=0, column=2, padx=(5, 0), pady=(5, 0), sticky="e"
+        )
 
         # Create a text widget to display chat messages
         self.chat_display = ctk.CTkTextbox(
@@ -52,19 +77,55 @@ class ChatApp(ctk.CTk):
             wrap=ctk.WORD,
             state="disabled",
         )
-        self.chat_display.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="nsew")
+        self.chat_display.grid(row=1, column=0, padx=20, pady=(5, 10), sticky="nsew")
+
+        # Create a frame to hold the message input and send button
+        self.input_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.input_frame.grid(row=2, column=0, padx=20, pady=(0, 0), sticky="nsew")
+        self.input_frame.grid_columnconfigure(0, weight=1)
 
         # Create a smaller text area for typing messages
         self.message_input = ctk.CTkTextbox(
-            self, font=chat_font, wrap="word", border_spacing=5
+            self.input_frame,
+            font=chat_font,
+            wrap="word",
+            height=35,  # Adjust this value to fit one line of text
+            fg_color="white",  # Set background color to white
+            border_color="#E0E0E0",  # Light gray border color
+            border_width=1,
         )
-        self.message_input.grid(row=2, column=0, padx=20, pady=(0, 0), sticky="nsew")
+        self.message_input.grid(row=0, column=0, sticky="nsew")
 
-        # Add a new frame for the send button and NDA-related buttons
+        # Create a button for sending messages
+        self.send_button = ctk.CTkButton(
+            self.input_frame,
+            text="",
+            image=self.send_icon,
+            command=self.send_message_thread,
+            width=30,
+            height=30,
+            fg_color="#1E90FF",  # Set button background to blue
+            hover_color="#4169E1",  # Slightly darker blue for hover
+            border_color="#1E90FF",  # Match the border color to the button color
+            bg_color="white",
+        )
+        self.send_button.place(
+            relx=1.0, rely=0.5, anchor="e", x=-5, y=-1
+        )  # Position button inside the input frame, slightly higher
+
+        # Add a new frame for the NDA-related buttons
         self.bottom_frame = ctk.CTkFrame(self)
-        self.bottom_frame.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
+        self.bottom_frame.grid(row=3, column=0, padx=20, pady=(0, 2), sticky="ew")
         self.bottom_frame.grid_columnconfigure(4, weight=1)
         self.bottom_frame.configure(fg_color="transparent")
+
+        button_config = {
+            "font": ctk.CTkFont(family=FONT_FAMILY, size=13),
+            "fg_color": "#1E90FF",
+            "hover_color": "#4169E1",
+            "height": 25,
+            "corner_radius": 3,
+        }
 
         # Upload NDA button
         self.upload_nda_button = ctk.CTkButton(
@@ -73,11 +134,9 @@ class ChatApp(ctk.CTk):
             image=self.upload_icon,
             compound="left",
             command=self.upload_nda,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
-            fg_color="#1E90FF",
-            hover_color="#4169E1",
+            **button_config,
         )
-        self.upload_nda_button.grid(row=0, column=0, padx=5, pady=10)
+        self.upload_nda_button.grid(row=0, column=0, padx=2, pady=(3, 3))
 
         # Upload Guidelines button
         self.upload_guidelines_button = ctk.CTkButton(
@@ -86,11 +145,9 @@ class ChatApp(ctk.CTk):
             image=self.upload_icon,
             compound="left",
             command=self.upload_guidelines,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
-            fg_color="#1E90FF",
-            hover_color="#4169E1",
+            **button_config,
         )
-        self.upload_guidelines_button.grid(row=0, column=1, padx=5, pady=10)
+        self.upload_guidelines_button.grid(row=0, column=1, padx=2, pady=(3, 3))
 
         # Revise NDA button
         self.analyze_button = ctk.CTkButton(
@@ -99,11 +156,9 @@ class ChatApp(ctk.CTk):
             image=self.edit_icon,
             compound="left",
             command=self.analyze_and_revise_nda,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
-            fg_color="#1E90FF",
-            hover_color="#4169E1",
+            **button_config,
         )
-        self.analyze_button.grid(row=0, column=2, padx=5, pady=10)
+        self.analyze_button.grid(row=0, column=2, padx=2, pady=(3, 3))
 
         # Download Revised NDA button
         self.download_nda_button = ctk.CTkButton(
@@ -112,32 +167,16 @@ class ChatApp(ctk.CTk):
             image=self.download_icon,
             compound="left",
             command=self.download_revised_nda,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
-            fg_color="#1E90FF",
-            hover_color="#4169E1",
+            **button_config,
         )
-        self.download_nda_button.grid(row=0, column=3, padx=5, pady=10)
-
-        # Create a button for sending messages
-        self.send_button = ctk.CTkButton(
-            self.bottom_frame,
-            text="",
-            image=self.send_icon,
-            command=self.send_message_thread,
-            font=ctk.CTkFont(family=FONT_FAMILY, size=13),
-            fg_color="#1E90FF",
-            hover_color="#4169E1",
-            width=30,
-            height=30,
-        )
-        self.send_button.grid(row=0, column=4, padx=5, pady=5, sticky="e")
+        self.download_nda_button.grid(row=0, column=3, padx=2, pady=(3, 3))
 
         # Set focus (cursor) to message_input automatically
         self.after(100, lambda: self.message_input.focus_set())
 
         # Configure the grid layout
-        self.grid_rowconfigure(1, weight=2)
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=0)
         self.grid_rowconfigure(3, weight=0)
         self.grid_columnconfigure(0, weight=1)
 
@@ -147,14 +186,6 @@ class ChatApp(ctk.CTk):
         # Bind (CTRL or Shift) + Return to do nothing, so we can use to add space
         self.bind("<Control-Return>", self.on_control_enter)
         self.bind("<Shift-Return>", self.on_control_enter)
-
-        # Set the default model to GPT-4
-        self.set_initial_model()
-
-        # Configure styles for ttk widgets
-        style = ttk.Style()
-        style.configure("TButton", font=(FONT_FAMILY, 12))
-        style.configure("TFrame", background="white")
 
     def on_control_enter(self, event) -> None:
         # Handle Control + Enter key event
@@ -170,22 +201,6 @@ class ChatApp(ctk.CTk):
         if self.message_input.get("1.0", tk.END).isspace():
             return
         self.send_message_thread()
-
-    def on_model_selection(self, model_name) -> None:
-        try:
-            self.model_name = model_name
-            self.backend.set_model(model_name=model_name)
-        except (KeyError, ValueError) as e:
-            self.update_chat_display(message=f"\n{e}")
-        else:
-            self.clear_chat()
-
-    def on_reset_callback(self) -> None:
-        self.clear_chat()
-        self.backend.set_model(model_name=self.model_name)
-
-    def on_export_callback(self) -> None:
-        threading.Thread(target=self.backend.export_conversation, daemon=True).start()
 
     def run(self) -> None:
         # start w/ fullscreen https://github.com/TomSchimansky/CustomTkinter/discussions/1500
@@ -369,7 +384,9 @@ class ChatApp(ctk.CTk):
         dialog.result = result
         dialog.destroy()
 
-    def set_initial_model(self):
-        initial_model = self.settings_frame.model_selection.get()
-        self.model_name = initial_model
-        self.backend.set_model(model_name=initial_model)
+    def export_chat(self):
+        try:
+            self.backend.export_conversation()
+            tk.messagebox.showinfo("Export Chat", "Chat exported successfully.")
+        except Exception as e:
+            tk.messagebox.showerror("Error", f"Failed to export chat: {str(e)}")

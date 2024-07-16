@@ -13,36 +13,15 @@ from nda_reviewer.utils.secrets import get_secret, set_secret
 
 class Backend:
     def __init__(self) -> None:
-        self.temperature: float = self.get_default_temperature()
-        self._models = {
-            "Language Model ": lambda: None,
-            "OpenAI GPT-4": lambda: OpenAIHandler(self.temperature),
-        }
-        self._llm: Optional[LLMProtocol] = None
+        self.temperature = self.get_default_temperature()
+        self._llm = OpenAIHandler(self.temperature)
         self.nda_content = None
         self.guidelines = None
         self.revised_nda = None
         self.suggested_changes = None
 
-    def available_models(self) -> list:
-        return list(self._models.keys())
-
-    def set_model(self, model_name: str) -> None:
-        if model_name not in self.available_models():
-            raise KeyError(f"Invalid Model Name {model_name}")
-        try:
-            self._llm = self._models[model_name]()
-        except ValueError as e:
-            raise ValueError(
-                f"Initialization Error. Have you set the API Key for {model_name}? {e}"
-            )
-
     def get_default_temperature(self):
-        """
-        Get the value of temperature from nda_reviewer.json if available
-        else return default_temperature.
-        """      
-        default_temperature = 0.7
+        default_temperature = 0.1
         try:
             temperature = float(get_secret("temperature"))
         except ValueError:

@@ -89,3 +89,6 @@ class OpenAIHandler:
         content = response.choices[0].message.content
         self.messages.append({"role": "assistant", "content": content})
         return content
+
+    def clear_messages(self):
+        self.messages = []

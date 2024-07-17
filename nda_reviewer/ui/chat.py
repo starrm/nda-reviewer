@@ -29,7 +29,7 @@ class ChatApp(ctk.CTk):
         self.upload_icon = load_svg_icon("upload", color="#FFFFFF")
         self.edit_icon = load_svg_icon("edit-3", color="#FFFFFF")
         self.download_icon = load_svg_icon("download", color="#FFFFFF")
-        self.send_icon = load_svg_icon("send", color="#FFFFFF", size=(20, 20))
+        self.send_icon = load_svg_icon("send", color="#FFFFFF")
         self.new_chat_icon = load_svg_icon("plus-circle", color="#FFFFFF")
         self.export_icon = load_svg_icon("save", color="#FFFFFF")
 
@@ -108,6 +108,7 @@ class ChatApp(ctk.CTk):
             hover_color="#4169E1",  # Slightly darker blue for hover
             border_color="#1E90FF",  # Match the border color to the button color
             bg_color="white",
+            corner_radius=3,
         )
         self.send_button.place(
             relx=1.0, rely=0.5, anchor="e", x=-5, y=-1
@@ -119,12 +120,27 @@ class ChatApp(ctk.CTk):
         self.bottom_frame.grid_columnconfigure(4, weight=1)
         self.bottom_frame.configure(fg_color="transparent")
 
-        button_config = {
+        self.button_config = {
             "font": ctk.CTkFont(family=FONT_FAMILY, size=13),
-            "fg_color": "#1E90FF",
-            "hover_color": "#4169E1",
             "height": 25,
             "corner_radius": 3,
+        }
+
+        self.active_button_config = {
+            "fg_color": "#1E90FF",
+            "hover_color": "#4169E1",
+        }
+
+        self.inactive_button_config = {
+            "fg_color": "#808080",
+            "hover_color": "#808080",
+            "state": "disabled",
+        }
+
+        self.completed_button_config = {
+            "fg_color": "#28A745",
+            "hover_color": "#218838",
+            "state": "disabled",
         }
 
         # Upload NDA button
@@ -134,7 +150,8 @@ class ChatApp(ctk.CTk):
             image=self.upload_icon,
             compound="left",
             command=self.upload_nda,
-            **button_config,
+            **self.button_config,
+            **self.active_button_config,
         )
         self.upload_nda_button.grid(row=0, column=0, padx=2, pady=(3, 3))
 
@@ -145,7 +162,8 @@ class ChatApp(ctk.CTk):
             image=self.upload_icon,
             compound="left",
             command=self.upload_guidelines,
-            **button_config,
+            **self.button_config,
+            **self.inactive_button_config,
         )
         self.upload_guidelines_button.grid(row=0, column=1, padx=2, pady=(3, 3))
 
@@ -156,7 +174,8 @@ class ChatApp(ctk.CTk):
             image=self.edit_icon,
             compound="left",
             command=self.analyze_and_revise_nda,
-            **button_config,
+            **self.button_config,
+            **self.inactive_button_config,
         )
         self.analyze_button.grid(row=0, column=2, padx=2, pady=(3, 3))
 
@@ -167,7 +186,8 @@ class ChatApp(ctk.CTk):
             image=self.download_icon,
             compound="left",
             command=self.download_revised_nda,
-            **button_config,
+            **self.button_config,
+            **self.inactive_button_config,
         )
         self.download_nda_button.grid(row=0, column=3, padx=2, pady=(3, 3))
 
@@ -240,15 +260,15 @@ class ChatApp(ctk.CTk):
         self.chat_display.delete("1.0", tk.END)
         self.chat_display.configure(state="disabled")
         self.message_input.delete("1.0", tk.END)
+        self.backend.clear_conversation()
 
     def upload_nda(self):
         try:
             result = self.backend.upload_nda()
             tk.messagebox.showinfo("Upload NDA", result)
             if "successfully" in result:
-                self.upload_nda_button.configure(
-                    fg_color="#28A745", hover_color="#218838"
-                )
+                self.upload_nda_button.configure(**self.completed_button_config)
+                self.upload_guidelines_button.configure(**self.active_button_config, state="normal")
         except ValueError as e:
             tk.messagebox.showerror("Error", str(e))
 
@@ -257,16 +277,8 @@ class ChatApp(ctk.CTk):
             result = self.backend.upload_guidelines()
             tk.messagebox.showinfo("Upload Guidelines", result)
             if "successfully" in result:
-                self.upload_guidelines_button.configure(
-                    fg_color="#28A745", hover_color="#218838"
-                )
-        except ValueError as e:
-            tk.messagebox.showerror("Error", str(e))
-
-    def download_revised_nda(self):
-        try:
-            result = self.backend.download_revised_nda()
-            tk.messagebox.showinfo("Download Revised NDA", result)
+                self.upload_guidelines_button.configure(**self.completed_button_config)
+                self.analyze_button.configure(**self.active_button_config, state="normal")
         except ValueError as e:
             tk.messagebox.showerror("Error", str(e))
 
@@ -275,12 +287,23 @@ class ChatApp(ctk.CTk):
             result = self.backend.analyze_and_revise_nda()
             if result == "Analysis complete. Ready to review changes.":
                 self.review_changes()
+                self.analyze_button.configure(**self.completed_button_config)
+                self.download_nda_button.configure(**self.active_button_config, state="normal")
             else:
                 tk.messagebox.showinfo("Analyze and Revise NDA", result)
         except ValueError as e:
             tk.messagebox.showerror("Error", str(e))
         except Exception as e:
             tk.messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
+
+    def download_revised_nda(self):
+        try:
+            result = self.backend.download_revised_nda()
+            tk.messagebox.showinfo("Download Revised NDA", result)
+            if "successfully" in result:
+                self.download_nda_button.configure(**self.completed_button_config)
+        except ValueError as e:
+            tk.messagebox.showerror("Error", str(e))
 
     def review_changes(self):
         approved_changes = []

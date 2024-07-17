@@ -170,3 +170,7 @@ class Backend:
         if self._llm is None:
             raise ValueError("No Language Model Has Been Selected.")
         return self._llm.get_response(user_input)
+
+    def clear_conversation(self):
+        if isinstance(self._llm, OpenAIHandler):
+            self._llm.clear_messages()

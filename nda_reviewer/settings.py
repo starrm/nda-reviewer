@@ -4,7 +4,7 @@ APP_VERSION = "0.8.2"
 MAIN_WINDOW_TITLE = f"NDA Reviewer"
 
 # Resolution for the main GUI window of the application (e.g. 1440x900)
-MAIN_WINDOW_RESOLUTION = "1200x750"
+MAIN_WINDOW_RESOLUTION = "800x500"
 
 # Set font-family
 FONT_FAMILY = "Inter"

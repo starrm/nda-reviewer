@@ -9,3 +9,4 @@ sseclient-py==1.8.0
 urllib3==2.1.0
 cairosvg==2.5.2
 Pillow==9.5.0
+python-redlines==0.3.0

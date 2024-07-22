@@ -38,13 +38,13 @@ class ChatApp(ctk.CTk):
         self.top_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(0, 0))
         self.top_frame.grid_columnconfigure(1, weight=1)
 
-        # New Chat button (top left)
+        # New NDA Review button (top left)
         self.new_chat_button = ctk.CTkButton(
             self.top_frame,
-            text="New Chat",
+            text="New NDA Review",
             image=self.new_chat_icon,
             compound="left",
-            command=self.clear_chat,
+            command=self.new_nda_review,
             font=ctk.CTkFont(family=FONT_FAMILY, size=13),
             fg_color="#1E90FF",
             hover_color="#4169E1",
@@ -76,6 +76,8 @@ class ChatApp(ctk.CTk):
             font=chat_font,
             wrap=ctk.WORD,
             state="disabled",
+            width=533,  # Approximately 2/3 of the previous width (800)
+            height=150,  # Half of the previous height (300)
         )
         self.chat_display.grid(row=1, column=0, padx=20, pady=(5, 10), sticky="nsew")
 
@@ -116,13 +118,15 @@ class ChatApp(ctk.CTk):
 
         # Add a new frame for the NDA-related buttons
         self.bottom_frame = ctk.CTkFrame(self)
-        self.bottom_frame.grid(row=3, column=0, padx=20, pady=(0, 2), sticky="ew")
-        self.bottom_frame.grid_columnconfigure(4, weight=1)
+        self.bottom_frame.grid(row=3, column=0, padx=20, pady=(5, 10), sticky="ew")
+        self.bottom_frame.grid_columnconfigure((0, 2, 4, 6), weight=1)
         self.bottom_frame.configure(fg_color="transparent")
+
+        button_width = 150
+        button_height = 30
 
         self.button_config = {
             "font": ctk.CTkFont(family=FONT_FAMILY, size=13),
-            "height": 25,
             "corner_radius": 3,
         }
 
@@ -150,10 +154,20 @@ class ChatApp(ctk.CTk):
             image=self.upload_icon,
             compound="left",
             command=self.upload_nda,
+            width=button_width,
+            height=button_height,
             **self.button_config,
             **self.active_button_config,
         )
-        self.upload_nda_button.grid(row=0, column=0, padx=2, pady=(3, 3))
+        self.upload_nda_button.grid(
+            row=0, column=0, padx=(0, 5), pady=(5, 0), sticky="ew"
+        )
+
+        # Horizontal line 1
+        self.separator1 = ctk.CTkFrame(
+            self.bottom_frame, height=2, width=16, fg_color="gray"
+        )
+        self.separator1.grid(row=0, column=1, sticky="ew", padx=5, pady=0)
 
         # Upload Guidelines button
         self.upload_guidelines_button = ctk.CTkButton(
@@ -162,10 +176,20 @@ class ChatApp(ctk.CTk):
             image=self.upload_icon,
             compound="left",
             command=self.upload_guidelines,
+            width=button_width,
+            height=button_height,
             **self.button_config,
             **self.inactive_button_config,
         )
-        self.upload_guidelines_button.grid(row=0, column=1, padx=2, pady=(3, 3))
+        self.upload_guidelines_button.grid(
+            row=0, column=2, padx=5, pady=(5, 0), sticky="ew"
+        )
+
+        # Horizontal line 2
+        self.separator2 = ctk.CTkFrame(
+            self.bottom_frame, height=2, width=16, fg_color="gray"
+        )
+        self.separator2.grid(row=0, column=3, sticky="ew")
 
         # Revise NDA button
         self.analyze_button = ctk.CTkButton(
@@ -174,10 +198,18 @@ class ChatApp(ctk.CTk):
             image=self.edit_icon,
             compound="left",
             command=self.analyze_and_revise_nda,
+            width=button_width,
+            height=button_height,
             **self.button_config,
             **self.inactive_button_config,
         )
-        self.analyze_button.grid(row=0, column=2, padx=2, pady=(3, 3))
+        self.analyze_button.grid(row=0, column=4, padx=5, pady=(5, 0), sticky="ew")
+
+        # Horizontal line 3
+        self.separator3 = ctk.CTkFrame(
+            self.bottom_frame, height=2, width=16, fg_color="gray"
+        )
+        self.separator3.grid(row=0, column=5, sticky="ew", padx=5, pady=0)
 
         # Download Revised NDA button
         self.download_nda_button = ctk.CTkButton(
@@ -186,10 +218,14 @@ class ChatApp(ctk.CTk):
             image=self.download_icon,
             compound="left",
             command=self.download_revised_nda,
+            width=button_width,
+            height=button_height,
             **self.button_config,
             **self.inactive_button_config,
         )
-        self.download_nda_button.grid(row=0, column=3, padx=2, pady=(3, 3))
+        self.download_nda_button.grid(
+            row=0, column=6, padx=(5, 0), pady=(5, 0), sticky="ew"
+        )
 
         # Set focus (cursor) to message_input automatically
         self.after(100, lambda: self.message_input.focus_set())
@@ -199,6 +235,9 @@ class ChatApp(ctk.CTk):
         self.grid_rowconfigure(2, weight=0)
         self.grid_rowconfigure(3, weight=0)
         self.grid_columnconfigure(0, weight=1)
+        self.chat_display.grid_propagate(
+            False
+        )  # Prevent the chat display from resizing its parent
 
         # Bind Enter key press to send_message action
         self.bind("<Return>", self.on_enter)
@@ -255,12 +294,28 @@ class ChatApp(ctk.CTk):
         self.chat_display.configure(state="disabled")
         self.chat_display.see(tk.END)
 
-    def clear_chat(self) -> None:
+    def new_nda_review(self) -> None:
+        # Clear chat display
         self.chat_display.configure(state="normal")
         self.chat_display.delete("1.0", tk.END)
         self.chat_display.configure(state="disabled")
         self.message_input.delete("1.0", tk.END)
+
+        # Reset backend
         self.backend.clear_conversation()
+        self.backend.nda_content = None
+        self.backend.guidelines = None
+        self.backend.revised_nda = None
+        self.backend.suggested_changes = None
+
+        # Reset button states
+        self.upload_nda_button.configure(**self.active_button_config, state="normal")
+        self.upload_guidelines_button.configure(**self.inactive_button_config)
+        self.analyze_button.configure(**self.inactive_button_config)
+        self.download_nda_button.configure(**self.inactive_button_config)
+
+        # Update the New Chat button text
+        self.new_chat_button.configure(text="New NDA Review")
 
     def upload_nda(self):
         try:
@@ -268,7 +323,9 @@ class ChatApp(ctk.CTk):
             tk.messagebox.showinfo("Upload NDA", result)
             if "successfully" in result:
                 self.upload_nda_button.configure(**self.completed_button_config)
-                self.upload_guidelines_button.configure(**self.active_button_config, state="normal")
+                self.upload_guidelines_button.configure(
+                    **self.active_button_config, state="normal"
+                )
         except ValueError as e:
             tk.messagebox.showerror("Error", str(e))
 
@@ -278,7 +335,9 @@ class ChatApp(ctk.CTk):
             tk.messagebox.showinfo("Upload Guidelines", result)
             if "successfully" in result:
                 self.upload_guidelines_button.configure(**self.completed_button_config)
-                self.analyze_button.configure(**self.active_button_config, state="normal")
+                self.analyze_button.configure(
+                    **self.active_button_config, state="normal"
+                )
         except ValueError as e:
             tk.messagebox.showerror("Error", str(e))
 
@@ -288,7 +347,9 @@ class ChatApp(ctk.CTk):
             if result == "Analysis complete. Ready to review changes.":
                 self.review_changes()
                 self.analyze_button.configure(**self.completed_button_config)
-                self.download_nda_button.configure(**self.active_button_config, state="normal")
+                self.download_nda_button.configure(
+                    **self.active_button_config, state="normal"
+                )
             else:
                 tk.messagebox.showinfo("Analyze and Revise NDA", result)
         except ValueError as e:

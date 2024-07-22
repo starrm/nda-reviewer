@@ -5,6 +5,8 @@ import os
 from tkinter import filedialog
 import json
 import difflib
+from python_redlines.engines import XmlPowerToolsEngine
+import tempfile
 
 from nda_reviewer.llms.base import LLMProtocol
 from nda_reviewer.llms.openai import OpenAIHandler
@@ -19,6 +21,8 @@ class Backend:
         self.guidelines = None
         self.revised_nda = None
         self.suggested_changes = None
+        self.original_docx_path = None
+        self.revised_docx_path = None
 
     def get_default_temperature(self):
         default_temperature = 0.1
@@ -54,6 +58,7 @@ class Backend:
         if not file_path:
             return "No file selected"
         
+        self.original_docx_path = file_path
         with open(file_path, 'rb') as file:
             if file_path.endswith('.docx'):
                 doc = Document(file)
@@ -82,7 +87,7 @@ class Backend:
         return f"Guidelines uploaded successfully: {os.path.basename(file_path)}"
 
     def download_revised_nda(self):
-        if not hasattr(self, 'revised_nda'):
+        if not self.revised_nda:
             return "No revised NDA available. Please analyze and revise the NDA first."
         
         file_path = filedialog.asksaveasfilename(
@@ -92,12 +97,8 @@ class Backend:
         if not file_path:
             return "Download cancelled"
         
-        doc = Document()
-        for paragraph in self.revised_nda.split('\n'):
-            doc.add_paragraph(paragraph)
-        doc.save(file_path)
-        
-        return f"Revised NDA downloaded successfully: {os.path.basename(file_path)}"
+        result = self.generate_redlined_docx(file_path)
+        return result
 
     def analyze_and_revise_nda(self):
         if not hasattr(self, 'nda_content') or not hasattr(self, 'guidelines'):
@@ -152,7 +153,7 @@ class Backend:
             yield change
 
     def apply_approved_changes(self, approved_changes):
-        if not hasattr(self, 'nda_content'):
+        if not self.nda_content:
             return "No NDA content found. Please upload an NDA first."
         
         revised_nda = self.nda_content
@@ -160,7 +161,34 @@ class Backend:
             revised_nda = revised_nda.replace(change['original_text'], change['suggested_change'])
         
         self.revised_nda = revised_nda
-        return "Changes applied successfully. You can now download the revised NDA."
+        
+        # Create a temporary file for the revised document
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_file:
+            doc = Document()
+            for paragraph in self.revised_nda.split('\n'):
+                doc.add_paragraph(paragraph)
+            doc.save(tmp_file.name)
+            self.revised_docx_path = tmp_file.name
+
+        return "Changes applied successfully. You can now download the revised and redlined NDA."
+
+    def generate_redlined_docx(self, output_path):
+        if not self.original_docx_path or not self.revised_docx_path:
+            return "Original or revised NDA not found. Please upload and revise the NDA first."
+
+        wrapper = XmlPowerToolsEngine()
+        
+        with open(self.original_docx_path, 'rb') as f:
+            original_bytes = f.read()
+        with open(self.revised_docx_path, 'rb') as f:
+            modified_bytes = f.read()
+
+        output = wrapper.run_redline('NDA Reviewer', original_bytes, modified_bytes)
+
+        with open(output_path, 'wb') as f:
+            f.write(output[0])
+
+        return f"Redlined document saved to {output_path}"
 
     def set_system_prompt(self, prompt: str):
         if isinstance(self._llm, OpenAIHandler):
